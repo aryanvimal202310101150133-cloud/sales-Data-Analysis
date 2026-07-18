@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sales & Profit — Ledger Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0A0F1C;
+  --panel:#111A2C;
+  --panel-2:#0D1524;
+  --border:#1F2A42;
+  --text:#EBF0F8;
+  --muted:#7C8AA8;
+  --muted-2:#4E5C78;
+  --tech:#4C8DFF;
+  --furn:#F2A65A;
+  --off:#34D399;
+  --pos:#34D399;
+  --neg:#FB6B6B;
+  --gold:#E8C468;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(76,141,255,0.08), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, rgba(232,196,104,0.05), transparent 60%),
+    var(--bg);
+  color:var(--text);
+  font-family:'IBM Plex Sans', sans-serif;
+  min-height:100vh;
+  padding:28px 32px 60px;
+}
+
+.wrap{max-width:1400px;margin:0 auto;}
+
+/* ---------- Header ---------- */
+.header{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  padding-bottom:20px;margin-bottom:22px;
+  border-bottom:1px solid var(--border);
+}
+.header-left .eyebrow{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--gold);margin-bottom:6px;
+}
+.header-left h1{
+  font-family:'Space Grotesk', sans-serif;
+  font-weight:700;font-size:32px;margin:0;
+  letter-spacing:-0.02em;
+}
+.header-left .sub{
+  color:var(--muted);font-size:13.5px;margin-top:6px;
+}
+.header-right{display:flex;gap:20px;align-items:center;}
+.ledger-clock{
+  font-family:'IBM Plex Mono',monospace;
+  text-align:right;
+}
+.ledger-clock .l1{color:var(--muted);font-size:11px;letter-spacing:.1em;text-transform:uppercase;}
+.ledger-clock .l2{font-size:18px;color:var(--text);font-weight:500;}
+
+/* ---------- Filters ---------- */
+.filters{
+  display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;align-items:center;
+}
+.filters .label{
+  font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.12em;margin-right:4px;
+}
+.pill{
+  font-family:'IBM Plex Mono',monospace;
+  padding:7px 14px;border-radius:20px;border:1px solid var(--border);
+  background:var(--panel);color:var(--muted);font-size:12.5px;cursor:pointer;
+  transition:all .15s ease;
+}
+.pill:hover{border-color:var(--tech);color:var(--text);}
+.pill.active{
+  background:var(--tech);color:#04101F;border-color:var(--tech);font-weight:600;
+}
+
+/* ---------- KPI row ---------- */
+.kpi-row{
+  display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:22px;
+}
+.kpi{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:16px 16px 14px;position:relative;overflow:hidden;
+}
+.kpi::before{
+  content:'';position:absolute;top:0;left:0;width:3px;height:100%;
+  background:var(--kcolor,var(--tech));
+}
+.kpi .k-label{
+  font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--muted);margin-bottom:8px;
+}
+.kpi .k-value{
+  font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:600;
+  color:var(--text);letter-spacing:-0.01em;font-variant-numeric:tabular-nums;
+}
+.kpi .k-delta{
+  font-size:11px;margin-top:6px;font-family:'IBM Plex Mono',monospace;
+}
+.k-delta.pos{color:var(--pos);}
+.k-delta.neg{color:var(--neg);}
+
+/* ---------- Panels ---------- */
+.grid{display:grid;gap:14px;margin-bottom:14px;}
+.grid-2{grid-template-columns:1.6fr 1fr;}
+.grid-3{grid-template-columns:1fr 1fr 1fr;}
+.grid-main{grid-template-columns:1fr 1fr;}
+
+.panel{
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  padding:18px 18px 14px;
+}
+.panel-title{
+  font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:600;
+  margin:0 0 2px;color:var(--text);
+}
+.panel-sub{
+  font-size:11.5px;color:var(--muted);margin-bottom:12px;
+  font-family:'IBM Plex Mono',monospace;
+}
+.chart-box{position:relative;width:100%;}
+
+/* ---------- Legend chips ---------- */
+.legend-row{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap;}
+.legend-chip{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+/* ---------- Table ---------- */
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th{
+  text-align:left;color:var(--muted);font-weight:500;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.08em;padding:6px 8px;
+  border-bottom:1px solid var(--border);font-family:'IBM Plex Mono',monospace;
+}
+td{padding:7px 8px;border-bottom:1px solid rgba(31,42,66,0.5);font-family:'IBM Plex Mono',monospace;}
+tr:last-child td{border-bottom:none;}
+td.name{font-family:'IBM Plex Sans',sans-serif;color:var(--text);}
+td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.rank{
+  display:inline-block;width:18px;height:18px;border-radius:4px;
+  background:var(--panel-2);border:1px solid var(--border);
+  text-align:center;line-height:18px;font-size:10px;color:var(--gold);margin-right:8px;
+}
+
+/* ---------- Region bars ---------- */
+.region-list{display:flex;flex-direction:column;gap:10px;}
+.region-row .r-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+.region-row .r-name{font-family:'Space Grotesk',sans-serif;font-weight:600;}
+.region-row .r-val{font-family:'IBM Plex Mono',monospace;color:var(--muted);}
+.bar-track{height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;background:var(--tech);}
+
+.footer-note{
+  text-align:center;color:var(--muted-2);font-size:11px;font-family:'IBM Plex Mono',monospace;
+  margin-top:30px;letter-spacing:.05em;
+}
+
+@media (max-width: 1100px){
+  .kpi-row{grid-template-columns:repeat(3,1fr);}
+  .grid-2, .grid-3, .grid-main{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="eyebrow">Superstore · US Retail Ledger</div>
+      <h1>Sales &amp; Profit Overview</h1>
+      <div class="sub">2023 – 2026 · 10,194 line items · 5,111 orders</div>
+    </div>
+    <div class="header-right">
+      <div class="ledger-clock">
+        <div class="l1">Range covered</div>
+        <div class="l2" id="rangeLabel">FY23 — FY26</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <span class="label">Year</span>
+    <div class="pill active" data-year="all">All Years</div>
+    <div class="pill" data-year="2023">2023</div>
+    <div class="pill" data-year="2024">2024</div>
+    <div class="pill" data-year="2025">2025</div>
+    <div class="pill" data-year="2026">2026</div>
+  </div>
+
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-title">Monthly Sales vs Profit</div>
+      <div class="panel-sub">Trend across full ledger, selected year highlighted</div>
+      <div class="chart-box" style="height:280px;"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Category Split</div>
+      <div class="panel-sub">Share of sales by product category</div>
+      <div class="chart-box" style="height:200px;"><canvas id="catDonut"></canvas></div>
+      <div class="legend-row" id="catLegend"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-title">Region Performance</div>
+      <div class="panel-sub">Sales, profit and order volume by region</div>
+      <div class="region-list" id="regionList"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Top States by Sales</div>
+      <div class="panel-sub">Top 10 states, bar length = sales</div>
+      <div class="chart-box" style="height:260px;"><canvas id="stateChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="panel">
+      <div class="panel-title">Sub-Category Breakdown</div>
+      <div class="panel-sub">Sales (bar) vs profit (color) across all sub-categories</div>
+      <div class="chart-box" style="height:320px;"><canvas id="subcatChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Segment &amp; Ship Mode</div>
+      <div class="panel-sub">Customer segment mix and fulfilment speed</div>
+      <div style="display:flex;gap:16px;">
+        <div class="chart-box" style="height:200px;flex:1;"><canvas id="segDonut"></canvas></div>
+        <div class="chart-box" style="height:200px;flex:1;"><canvas id="shipChart"></canvas></div>
+      </div>
+      <div class="legend-row" id="segLegend"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-3">
+    <div class="panel">
+      <div class="panel-title">Top 10 Customers</div>
+      <div class="panel-sub">Ranked by total sales</div>
+      <table>
+        <thead><tr><th>Customer</th><th style="text-align:right">Sales</th><th style="text-align:right">Orders</th></tr></thead>
+        <tbody id="custBody"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Top 10 Products</div>
+      <div class="panel-sub">Ranked by total sales</div>
+      <table>
+        <thead><tr><th>Product</th><th style="text-align:right">Sales</th><th style="text-align:right">Profit</th></tr></thead>
+        <tbody id="prodBody"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Year-over-Year</div>
+      <div class="panel-sub">Annual sales &amp; profit totals</div>
+      <div class="chart-box" style="height:230px;"><canvas id="yoyChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="footer-note">GENERATED FROM sales_data_clean.csv · INTERACTIVE PREVIEW — OPEN IN POWER BI DESKTOP FOR THE FULL .PBIX BUILD</div>
+
+</div>
+
+<script>
+const DATA = {"kpi": {"total_sales": 2326534.35, "total_profit": 292296.81, "total_orders": 5111, "avg_margin": 12.22, "total_quantity": 38654, "total_customers": 804}, "monthly": [{"YM": "2023-01", "Sales": 14518.06, "Profit": 2539.39}, {"YM": "2023-02", "Sales": 4519.89, "Profit": 862.31}, {"YM": "2023-03", "Sales": 56933.91, "Profit": 693.45}, {"YM": "2023-04", "Sales": 28295.34, "Profit": 3488.84}, {"YM": "2023-05", "Sales": 26319.77, "Profit": 3196.39}, {"YM": "2023-06", "Sales": 34669.48, "Profit": 4999.76}, {"YM": "2023-07", "Sales": 33946.39, "Profit": -841.48}, {"YM": "2023-08", "Sales": 28918.34, "Profit": 5765.22}, {"YM": "2023-09", "Sales": 82670.43, "Profit": 8593.63}, {"YM": "2023-10", "Sales": 32413.34, "Profit": 3469.17}, {"YM": "2023-11", "Sales": 78826.96, "Profit": 9362.96}, {"YM": "2023-12", "Sales": 72008.31, "Profit": 9554.66}, {"YM": "2024-01", "Sales": 18461.92, "Profit": -3189.8}, {"YM": "2024-02", "Sales": 11951.41, "Profit": 2813.85}, {"YM": "2024-03", "Sales": 39978.63, "Profit": 9930.61}, {"YM": "2024-04", "Sales": 34195.21, "Profit": 4187.5}, {"YM": "2024-05", "Sales": 30246.95, "Profit": 4677.14}, {"YM": "2024-06", "Sales": 24797.29, "Profit": 3335.56}, {"YM": "2024-07", "Sales": 28765.32, "Profit": 3288.65}, {"YM": "2024-08", "Sales": 37057.0, "Profit": 5371.63}, {"YM": "2024-09", "Sales": 64627.05, "Profit": 8220.03}, {"YM": "2024-10", "Sales": 31407.13, "Profit": 2817.97}, {"YM": "2024-11", "Sales": 75972.56, "Profit": 12474.79}, {"YM": "2024-12", "Sales": 75532.56, "Profit": 8093.06}, {"YM": "2025-01", "Sales": 18830.33, "Profit": 2916.02}, {"YM": "2025-02", "Sales": 22978.82, "Profit": 5004.58}, {"YM": "2025-03", "Sales": 53031.07, "Profit": 3707.89}, {"YM": "2025-04", "Sales": 38829.16, "Profit": 2991.66}, {"YM": "2025-05", "Sales": 57042.84, "Profit": 8676.7}, {"YM": "2025-06", "Sales": 40937.15, "Profit": 4926.32}, {"YM": "2025-07", "Sales": 40300.5, "Profit": 4559.88}, {"YM": "2025-08", "Sales": 31716.81, "Profit": 2317.5}, {"YM": "2025-09", "Sales": 73521.66, "Profit": 9370.1}, {"YM": "2025-10", "Sales": 59831.0, "Profit": 16256.84}, {"YM": "2025-11", "Sales": 79411.97, "Profit": 4011.41}, {"YM": "2025-12", "Sales": 97502.28, "Profit": 17926.3}, {"YM": "2026-01", "Sales": 44259.21, "Profit": 7231.64}, {"YM": "2026-02", "Sales": 20301.13, "Profit": 1613.87}, {"YM": "2026-03", "Sales": 60728.48, "Profit": 15013.09}, {"YM": "2026-04", "Sales": 36779.04, "Profit": 957.53}, {"YM": "2026-05", "Sales": 45155.48, "Profit": 6299.81}, {"YM": "2026-06", "Sales": 53056.08, "Profit": 8246.57}, {"YM": "2026-07", "Sales": 45989.5, "Profit": 7006.5}, {"YM": "2026-08", "Sales": 64129.76, "Profit": 9488.07}, {"YM": "2026-09", "Sales": 88064.53, "Profit": 11050.8}, {"YM": "2026-10", "Sales": 83474.78, "Profit": 10670.53}, {"YM": "2026-11", "Sales": 118454.5, "Profit": 9692.1}, {"YM": "2026-12", "Sales": 85175.03, "Profit": 8655.83}], "region": [{"Region": "West", "Sales": 739813.61, "Profit": 110798.82, "Orders": 1635}, {"Region": "East", "Sales": 691828.17, "Profit": 94883.26, "Orders": 1475}, {"Region": "Central", "Sales": 503170.67, "Profit": 39865.31, "Orders": 1179}, {"Region": "South", "Sales": 391721.9, "Profit": 46749.43, "Orders": 822}], "state": [{"State/Province": "California", "Sales": 457687.63, "Profit": 76381.39}, {"State/Province": "New York", "Sales": 310876.27, "Profit": 74038.55}, {"State/Province": "Texas", "Sales": 170188.05, "Profit": -25729.36}, {"State/Province": "Washington", "Sales": 138641.27, "Profit": 33402.65}, {"State/Province": "Pennsylvania", "Sales": 116511.91, "Profit": -15559.96}, {"State/Province": "Florida", "Sales": 89473.71, "Profit": -3399.3}, {"State/Province": "Illinois", "Sales": 80166.1, "Profit": -12607.89}, {"State/Province": "Ohio", "Sales": 78258.14, "Profit": -16971.38}, {"State/Province": "Michigan", "Sales": 76269.61, "Profit": 24463.19}, {"State/Province": "Virginia", "Sales": 70636.72, "Profit": 18597.95}, {"State/Province": "North Carolina", "Sales": 55603.16, "Profit": -7490.91}, {"State/Province": "Indiana", "Sales": 53555.36, "Profit": 18382.94}, {"State/Province": "Georgia", "Sales": 49095.84, "Profit": 16250.04}, {"State/Province": "Kentucky", "Sales": 36591.75, "Profit": 11199.7}, {"State/Province": "New Jersey", "Sales": 35764.31, "Profit": 9772.91}], "category": [{"Category": "Technology", "Sales": 839893.28, "Profit": 146543.38}, {"Category": "Furniture", "Sales": 754747.76, "Profit": 19730.0}, {"Category": "Office Supplies", "Sales": 731893.31, "Profit": 126023.44}], "subcategory": [{"Category": "Furniture", "Sub-Category": "Chairs", "Sales": 335768.25, "Profit": 27223.53}, {"Category": "Technology", "Sub-Category": "Phones", "Sales": 331842.64, "Profit": 45050.83}, {"Category": "Office Supplies", "Sub-Category": "Storage", "Sales": 224644.55, "Profit": 21285.11}, {"Category": "Furniture", "Sub-Category": "Tables", "Sales": 208020.18, "Profit": -17753.21}, {"Category": "Office Supplies", "Sub-Category": "Binders", "Sales": 207354.88, "Profit": 31426.1}, {"Category": "Technology", "Sub-Category": "Machines", "Sales": 189925.03, "Profit": 3461.98}, {"Category": "Technology", "Sub-Category": "Accessories", "Sales": 167380.32, "Profit": 41936.64}, {"Category": "Technology", "Sub-Category": "Copiers", "Sales": 150745.29, "Profit": 56093.94}, {"Category": "Furniture", "Sub-Category": "Bookcases", "Sales": 115361.2, "Profit": -3632.07}, {"Category": "Office Supplies", "Sub-Category": "Appliances", "Sales": 108213.18, "Profit": 18329.48}, {"Category": "Furniture", "Sub-Category": "Furnishings", "Sales": 95598.13, "Profit": 13891.74}, {"Category": "Office Supplies", "Sub-Category": "Paper", "Sales": 79540.54, "Profit": 34511.51}, {"Category": "Office Supplies", "Sub-Category": "Supplies", "Sales": 46725.5, "Profit": -1171.39}, {"Category": "Office Supplies", "Sub-Category": "Art", "Sales": 27659.01, "Profit": 6653.2}, {"Category": "Office Supplies", "Sub-Category": "Envelopes", "Sales": 16528.36, "Profit": 6988.02}, {"Category": "Office Supplies", "Sub-Category": "Labels", "Sales": 12695.04, "Profit": 5572.78}, {"Category": "Office Supplies", "Sub-Category": "Fasteners", "Sales": 8532.24, "Profit": 2428.64}], "segment": [{"Segment": "Consumer", "Sales": 1170659.79, "Profit": 136371.45, "Orders": 2628}, {"Segment": "Corporate", "Sales": 715806.13, "Profit": 94249.64, "Orders": 1552}, {"Segment": "Home Office", "Sales": 440068.43, "Profit": 61675.73, "Orders": 931}], "shipmode": [{"Ship Mode": "First Class", "Sales": 351750.74, "AvgDays": 2.18}, {"Ship Mode": "Same Day", "Sales": 129271.96, "AvgDays": 0.04}, {"Ship Mode": "Second Class", "Sales": 466671.11, "AvgDays": 3.24}, {"Ship Mode": "Standard Class", "Sales": 1378840.55, "AvgDays": 5.0}], "topcustomers": [{"Customer Name": "Sean Miller", "Sales": 25043.05, "Profit": -1980.74, "Orders": 5}, {"Customer Name": "Tamara Chand", "Sales": 19052.22, "Profit": 8981.32, "Orders": 5}, {"Customer Name": "Raymond Buch", "Sales": 15117.34, "Profit": 6976.1, "Orders": 6}, {"Customer Name": "Tom Ashbrook", "Sales": 14595.62, "Profit": 4703.79, "Orders": 4}, {"Customer Name": "Adrian Barton", "Sales": 14473.57, "Profit": 5444.81, "Orders": 10}, {"Customer Name": "Ken Lonsdale", "Sales": 14175.23, "Profit": 806.85, "Orders": 12}, {"Customer Name": "Sanjit Chand", "Sales": 14142.33, "Profit": 5757.41, "Orders": 9}, {"Customer Name": "Hunter Lopez", "Sales": 12873.3, "Profit": 5622.43, "Orders": 6}, {"Customer Name": "Sanjit Engle", "Sales": 12209.44, "Profit": 2650.68, "Orders": 11}, {"Customer Name": "Christopher Conant", "Sales": 12129.07, "Profit": 2177.05, "Orders": 5}], "yearly": [{"Order Year": 2023, "Sales": 494040.21, "Profit": 51684.3}, {"Order Year": 2024, "Sales": 472993.03, "Profit": 62020.97}, {"Order Year": 2025, "Sales": 613933.58, "Profit": 82665.2}, {"Order Year": 2026, "Sales": 745567.53, "Profit": 95926.35}], "topproducts": [{"Product Name": "Canon imageCLASS 2200 Advanced Copier", "Sales": 61599.82, "Profit": 25199.93, "Quantity": 20}, {"Product Name": "Fellowes PB500 Electric Punch Plastic Comb Binding Machine with Manual Bind", "Sales": 27453.38, "Profit": 7753.04, "Quantity": 31}, {"Product Name": "Cisco TelePresence System EX90 Videoconferencing Unit", "Sales": 22638.48, "Profit": -1811.08, "Quantity": 6}, {"Product Name": "HON 5400 Series Task Chairs for Big and Tall", "Sales": 21870.58, "Profit": 0.0, "Quantity": 39}, {"Product Name": "GBC DocuBind TL300 Electric Binding System", "Sales": 19823.48, "Profit": 2233.51, "Quantity": 37}, {"Product Name": "GBC Ibimaster 500 Manual ProClick Binding System", "Sales": 19024.5, "Profit": 760.98, "Quantity": 48}, {"Product Name": "Hewlett Packard LaserJet 3310 Copier", "Sales": 18839.69, "Profit": 6983.88, "Quantity": 38}, {"Product Name": "HP Designjet T520 Inkjet Large Format Printer - 24\" Color", "Sales": 18374.9, "Profit": 4094.98, "Quantity": 12}, {"Product Name": "GBC DocuBind P400 Electric Binding System", "Sales": 17965.07, "Profit": -1878.17, "Quantity": 27}, {"Product Name": "High Speed Automatic Electric Letter Opener", "Sales": 17030.31, "Profit": -262.0, "Quantity": 11}], "by_year": {"2023": {"kpi": {"total_sales": 494040.21, "total_profit": 51684.3, "total_orders": 995, "avg_margin": 12.23, "total_quantity": 7813, "total_customers": 605}, "region": [{"Region": "West", "Sales": 150916.37, "Profit": 20254.48, "Orders": 319}, {"Region": "East", "Sales": 135439.83, "Profit": 19011.14, "Orders": 281}, {"Region": "South", "Sales": 103845.84, "Profit": 11879.12, "Orders": 165}, {"Region": "Central", "Sales": 103838.16, "Profit": 539.55, "Orders": 230}], "category": [{"Category": "Technology", "Sales": 177901.43, "Profit": 22310.4}, {"Category": "Furniture", "Sales": 162124.81, "Profit": 5884.57}, {"Category": "Office Supplies", "Sales": 154013.97, "Profit": 23489.33}], "segment": [{"Segment": "Consumer", "Sales": 268700.18, "Profit": 25162.89, "Orders": 533}, {"Segment": "Corporate", "Sales": 130792.38, "Profit": 13934.69, "Orders": 297}, {"Segment": "Home Office", "Sales": 94547.65, "Profit": 12586.72, "Orders": 165}]}, "2024": {"kpi": {"total_sales": 472993.03, "total_profit": 62020.97, "total_orders": 1053, "avg_margin": 11.93, "total_quantity": 8086, "total_customers": 577}, "region": [{"Region": "East", "Sales": 157071.42, "Profit": 21189.05, "Orders": 307}, {"Region": "West", "Sales": 141687.41, "Profit": 20796.52, "Orders": 342}, {"Region": "Central", "Sales": 102874.22, "Profit": 11716.8, "Orders": 234}, {"Region": "South", "Sales": 71359.98, "Profit": 8318.59, "Orders": 170}], "category": [{"Category": "Furniture", "Sales": 172330.3, "Profit": 3279.97}, {"Category": "Technology", "Sales": 162992.52, "Profit": 33563.13}, {"Category": "Office Supplies", "Sales": 137670.22, "Profit": 25177.88}], "segment": [{"Segment": "Consumer", "Sales": 267332.57, "Profit": 28613.55, "Orders": 541}, {"Segment": "Corporate", "Sales": 129108.25, "Profit": 20762.99, "Orders": 317}, {"Segment": "Home Office", "Sales": 76552.21, "Profit": 12644.42, "Orders": 195}]}, "2025": {"kpi": {"total_sales": 613933.58, "total_profit": 82665.2, "total_orders": 1340, "avg_margin": 13.06, "total_quantity": 10018, "total_customers": 653}, "region": [{"Region": "West", "Sales": 188968.79, "Profit": 24323.0, "Orders": 428}, {"Region": "East", "Sales": 182749.87, "Profit": 20602.63, "Orders": 391}, {"Region": "Central", "Sales": 148604.69, "Profit": 20036.76, "Orders": 307}, {"Region": "South", "Sales": 93610.22, "Profit": 17702.81, "Orders": 214}], "category": [{"Category": "Technology", "Sales": 226580.16, "Profit": 39835.76}, {"Category": "Furniture", "Sales": 200979.73, "Profit": 7216.22}, {"Category": "Office Supplies", "Sales": 186373.69, "Profit": 35613.22}], "segment": [{"Segment": "Consumer", "Sales": 299715.12, "Profit": 36324.73, "Orders": 664}, {"Segment": "Corporate", "Sales": 207661.38, "Profit": 31144.69, "Orders": 430}, {"Segment": "Home Office", "Sales": 106557.08, "Profit": 15195.78, "Orders": 246}]}, "2026": {"kpi": {"total_sales": 745567.53, "total_profit": 95926.35, "total_orders": 1723, "avg_margin": 11.75, "total_quantity": 12737, "total_customers": 704}, "region": [{"Region": "West", "Sales": 258241.03, "Profit": 45424.81, "Orders": 546}, {"Region": "East", "Sales": 216567.04, "Profit": 34080.43, "Orders": 496}, {"Region": "Central", "Sales": 147853.6, "Profit": 7572.19, "Orders": 408}, {"Region": "South", "Sales": 122905.86, "Profit": 8848.91, "Orders": 273}], "category": [{"Category": "Technology", "Sales": 272419.17, "Profit": 50834.08}, {"Category": "Office Supplies", "Sales": 253835.44, "Profit": 41743.02}, {"Category": "Furniture", "Sales": 219312.93, "Profit": 3349.24}], "segment": [{"Segment": "Consumer", "Sales": 334911.93, "Profit": 46270.28, "Orders": 890}, {"Segment": "Corporate", "Sales": 248244.12, "Profit": 28407.26, "Orders": 508}, {"Segment": "Home Office", "Sales": 162411.49, "Profit": 21248.81, "Orders": 325}]}}};
+
+const fmtMoney = (n) => {
+  const abs = Math.abs(n);
+  let s;
+  if(abs >= 1000000) s = (n/1000000).toFixed(2)+'M';
+  else if(abs >= 1000) s = (n/1000).toFixed(1)+'K';
+  else s = n.toFixed(0);
+  return '$'+s;
+};
+const fmtNum = (n) => n.toLocaleString('en-US');
+
+const COLORS = {tech:'#4C8DFF', furn:'#F2A65A', off:'#34D399', pos:'#34D399', neg:'#FB6B6B', gold:'#E8C468', muted:'#7C8AA8'};
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.color = '#7C8AA8';
+
+let currentYear = 'all';
+let charts = {};
+
+function getKPI(){ return currentYear==='all' ? DATA.kpi : DATA.by_year[currentYear].kpi; }
+function getRegion(){ return currentYear==='all' ? DATA.region : DATA.by_year[currentYear].region; }
+function getCategory(){ return currentYear==='all' ? DATA.category : DATA.by_year[currentYear].category; }
+function getSegment(){ return currentYear==='all' ? DATA.segment : DATA.by_year[currentYear].segment; }
+
+function renderKPIs(){
+  const k = getKPI();
+  const cards = [
+    {label:'Total Sales', val: fmtMoney(k.total_sales), color: COLORS.tech},
+    {label:'Total Profit', val: fmtMoney(k.total_profit), color: k.total_profit>=0?COLORS.pos:COLORS.neg},
+    {label:'Avg Margin %', val: k.avg_margin.toFixed(1)+'%', color: COLORS.gold},
+    {label:'Orders', val: fmtNum(k.total_orders), color: COLORS.off},
+    {label:'Units Sold', val: fmtNum(k.total_quantity), color: COLORS.furn},
+    {label:'Customers', val: fmtNum(k.total_customers), color: COLORS.tech},
+  ];
+  document.getElementById('kpiRow').innerHTML = cards.map(c => `
+    <div class="kpi" style="--kcolor:${c.color}">
+      <div class="k-label">${c.label}</div>
+      <div class="k-value">${c.val}</div>
+    </div>
+  `).join('');
+}
+
+function renderRegion(){
+  const regions = getRegion();
+  const max = Math.max(...regions.map(r=>r.Sales));
+  document.getElementById('regionList').innerHTML = regions.map(r => `
+    <div class="region-row">
+      <div class="r-top">
+        <span class="r-name">${r.Region}</span>
+        <span class="r-val">${fmtMoney(r.Sales)} · ${r.Orders} orders</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(r.Sales/max*100).toFixed(1)}%; background:${r.Profit>=0?COLORS.tech:COLORS.neg}"></div></div>
+    </div>
+  `).join('');
+}
+
+function renderCatLegend(){
+  const cats = getCategory();
+  const colorMap = {'Technology':COLORS.tech,'Furniture':COLORS.furn,'Office Supplies':COLORS.off};
+  document.getElementById('catLegend').innerHTML = cats.map(c => `
+    <div class="legend-chip"><span class="dot" style="background:${colorMap[c.Category]}"></span>${c.Category} · ${fmtMoney(c.Sales)}</div>
+  `).join('');
+}
+
+function renderSegLegend(){
+  const segs = getSegment();
+  const palette = [COLORS.tech, COLORS.furn, COLORS.off];
+  document.getElementById('segLegend').innerHTML = segs.map((s,i) => `
+    <div class="legend-chip"><span class="dot" style="background:${palette[i%3]}"></span>${s.Segment}</div>
+  `).join('');
+}
+
+function renderTables(){
+  document.getElementById('custBody').innerHTML = DATA.topcustomers.slice(0,10).map((c,i) => `
+    <tr><td class="name"><span class="rank">${i+1}</span>${c['Customer Name']}</td><td class="num">${fmtMoney(c.Sales)}</td><td class="num">${c.Orders}</td></tr>
+  `).join('');
+  document.getElementById('prodBody').innerHTML = DATA.topproducts.slice(0,10).map((p,i) => {
+    const name = p['Product Name'].length > 34 ? p['Product Name'].slice(0,34)+'…' : p['Product Name'];
+    return `<tr><td class="name"><span class="rank">${i+1}</span>${name}</td><td class="num">${fmtMoney(p.Sales)}</td><td class="num" style="color:${p.Profit>=0?COLORS.pos:COLORS.neg}">${fmtMoney(p.Profit)}</td></tr>`;
+  }).join('');
+}
+
+function destroy(id){ if(charts[id]){ charts[id].destroy(); } }
+
+function renderTrend(){
+  destroy('trend');
+  const labels = DATA.monthly.map(m=>m.YM);
+  const highlightYear = currentYear;
+  charts.trend = new Chart(document.getElementById('trendChart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {
+          label:'Sales', data: DATA.monthly.map(m=>m.Sales),
+          borderColor: COLORS.tech, backgroundColor: 'rgba(76,141,255,0.12)',
+          fill:true, tension:0.35, pointRadius:0, borderWidth:2, yAxisID:'y'
+        },
+        {
+          label:'Profit', data: DATA.monthly.map(m=>m.Profit),
+          borderColor: COLORS.gold, backgroundColor:'transparent',
+          fill:false, tension:0.35, pointRadius:0, borderWidth:1.6, borderDash:[3,3], yAxisID:'y1'
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{
+        legend:{display:true, labels:{boxWidth:10, font:{size:10.5}}},
+        tooltip:{
+          backgroundColor:'#0D1524', borderColor:'#1F2A42', borderWidth:1,
+          callbacks:{ label: (ctx)=> ` ${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` }
+        }
+      },
+      scales:{
+        x:{ grid:{color:'rgba(31,42,66,0.5)'}, ticks:{maxTicksLimit:12, font:{size:9.5}} },
+        y:{ position:'left', grid:{color:'rgba(31,42,66,0.5)'}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9.5} } },
+        y1:{ position:'right', grid:{display:false}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9.5} } }
+      }
+    }
+  });
+}
+
+function renderCatDonut(){
+  destroy('cat');
+  const cats = getCategory();
+  const colorMap = {'Technology':COLORS.tech,'Furniture':COLORS.furn,'Office Supplies':COLORS.off};
+  charts.cat = new Chart(document.getElementById('catDonut'), {
+    type:'doughnut',
+    data:{
+      labels: cats.map(c=>c.Category),
+      datasets:[{ data: cats.map(c=>c.Sales), backgroundColor: cats.map(c=>colorMap[c.Category]), borderColor: '#111A2C', borderWidth:3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'68%',
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ` ${ctx.label}: ${fmtMoney(ctx.parsed)}` } } }
+    }
+  });
+}
+
+function renderStateChart(){
+  destroy('state');
+  const states = DATA.state.slice(0,10);
+  charts.state = new Chart(document.getElementById('stateChart'), {
+    type:'bar',
+    data:{
+      labels: states.map(s=>s['State/Province']),
+      datasets:[{ data: states.map(s=>s.Sales), backgroundColor: states.map(s=>s.Profit>=0?COLORS.tech:COLORS.neg), borderRadius:4, maxBarThickness:22 }]
+    },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=>` ${fmtMoney(ctx.parsed.x)}` } } },
+      scales:{
+        x:{ grid:{color:'rgba(31,42,66,0.5)'}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9.5} } },
+        y:{ grid:{display:false}, ticks:{font:{size:10.5}} }
+      }
+    }
+  });
+}
+
+function renderSubcat(){
+  destroy('subcat');
+  const sc = DATA.subcategory;
+  const colorMap = {'Technology':COLORS.tech,'Furniture':COLORS.furn,'Office Supplies':COLORS.off};
+  charts.subcat = new Chart(document.getElementById('subcatChart'), {
+    type:'bar',
+    data:{
+      labels: sc.map(s=>s['Sub-Category']),
+      datasets:[{ data: sc.map(s=>s.Sales), backgroundColor: sc.map(s=>colorMap[s.Category]), borderRadius:3 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ` ${fmtMoney(ctx.parsed.y)}` } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{ font:{size:9}, maxRotation:55, minRotation:55 } },
+        y:{ grid:{color:'rgba(31,42,66,0.5)'}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9.5} } }
+      }
+    }
+  });
+}
+
+function renderSegDonut(){
+  destroy('seg');
+  const segs = getSegment();
+  const palette = [COLORS.tech, COLORS.furn, COLORS.off];
+  charts.seg = new Chart(document.getElementById('segDonut'), {
+    type:'doughnut',
+    data:{ labels: segs.map(s=>s.Segment), datasets:[{ data: segs.map(s=>s.Sales), backgroundColor: palette, borderColor:'#111A2C', borderWidth:3 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ` ${ctx.label}: ${fmtMoney(ctx.parsed)}` } } } }
+  });
+}
+
+function renderShip(){
+  destroy('ship');
+  const sm = DATA.shipmode;
+  charts.ship = new Chart(document.getElementById('shipChart'), {
+    type:'bar',
+    data:{ labels: sm.map(s=>s['Ship Mode'].replace(' Class','')), datasets:[{ data: sm.map(s=>s.Sales), backgroundColor: COLORS.gold, borderRadius:4, maxBarThickness:26 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:(ctx)=> ` ${fmtMoney(ctx.parsed.y)}` } } },
+      scales:{ x:{ grid:{display:false}, ticks:{font:{size:9}} }, y:{ grid:{color:'rgba(31,42,66,0.5)'}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9} } } }
+    }
+  });
+}
+
+function renderYoY(){
+  destroy('yoy');
+  const yr = DATA.yearly;
+  charts.yoy = new Chart(document.getElementById('yoyChart'), {
+    data:{
+      labels: yr.map(y=>y['Order Year']),
+      datasets:[
+        { type:'bar', label:'Sales', data: yr.map(y=>y.Sales), backgroundColor:'rgba(76,141,255,0.55)', borderRadius:4, order:2 },
+        { type:'line', label:'Profit', data: yr.map(y=>y.Profit), borderColor: COLORS.gold, backgroundColor: COLORS.gold, tension:0.3, pointRadius:3, borderWidth:2, order:1, yAxisID:'y1' }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{boxWidth:10,font:{size:10}}}, tooltip:{ callbacks:{ label:(ctx)=> ` ${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}` } } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{size:10}} },
+        y:{ grid:{color:'rgba(31,42,66,0.5)'}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9} } },
+        y1:{ position:'right', grid:{display:false}, ticks:{ callback:(v)=>fmtMoney(v), font:{size:9} } }
+      }
+    }
+  });
+}
+
+function renderAll(){
+  renderKPIs();
+  renderRegion();
+  renderCatLegend();
+  renderSegLegend();
+  renderTrend();
+  renderCatDonut();
+  renderStateChart();
+  renderSubcat();
+  renderSegDonut();
+  renderShip();
+  renderYoY();
+}
+
+renderTables();
+renderAll();
+
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    currentYear = p.dataset.year;
+    document.getElementById('rangeLabel').textContent = currentYear==='all' ? 'FY23 — FY26' : 'FY'+currentYear.slice(2);
+    renderKPIs();
+    renderRegion();
+    renderCatLegend();
+    renderCatDonut();
+    renderSegLegend();
+    renderSegDonut();
+  });
+});
+</script>
+</body>
+</html>
